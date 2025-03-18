@@ -39,8 +39,7 @@ class Server
             new \RecursiveDirectoryIterator($base_path)
         );
 
-        //$methods = ["GET", "POST", "PATCH", "PUT", "DELETE"];
-        $methods = ["GET"];
+        $methods = ["GET", "POST", "PATCH", "PUT", "DELETE"];
         foreach ($files as $key => $file) {
             if ($file->isFile()) {
 
