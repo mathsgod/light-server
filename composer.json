@@ -16,5 +16,6 @@
         "psr-4": {
             "Light\\": "src/"
         }
-    }
+    },
+    "license": "MIT"
 }
