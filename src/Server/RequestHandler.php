@@ -8,7 +8,6 @@ use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use ReflectionMethod;
 use ReflectionObject;
 use \Psr\Http\Server\MiddlewareInterface;
 use ReflectionNamedType;
@@ -60,7 +59,7 @@ class RequestHandler implements MiddlewareInterface
                 $middle->pipe($attribute->newInstance());
             }
 
-            $handler = new class($this->stub, $ref_method, null) implements MiddlewareInterface
+            $handler = new class($this->stub, $ref_method, $this->container) implements MiddlewareInterface
             {
                 private $object;
                 private $ref_method;
