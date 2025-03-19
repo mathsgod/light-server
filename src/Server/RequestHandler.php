@@ -42,8 +42,6 @@ class RequestHandler implements MiddlewareInterface
 
     function handle(ServerRequestInterface $request): ResponseInterface
     {
-
-
         $this->middleware->pipe($this);
         return $this->middleware->handle($request);
     }
@@ -55,41 +53,32 @@ class RequestHandler implements MiddlewareInterface
         $ref_obj = new ReflectionObject($this->stub);
 
         if ($ref_obj->hasMethod($method)) {
-            $fallback_handler = new class($this, $this->stub, $method, null) implements RequestHandlerInterface
+            $middle = new MiddlewarePipe();
+            $ref_method = $ref_obj->getMethod($method);
+
+            foreach ($ref_method->getAttributes() as $attribute) {
+                $middle->pipe($attribute->newInstance());
+            }
+
+            $handler = new class($this->stub, $ref_method, null) implements MiddlewareInterface
             {
-                private $php;
                 private $object;
                 private $ref_method;
                 private $container;
 
-                public function __construct(RequestHandler $php, $object, string $method, ?ContainerInterface $container)
+                public function __construct($object, $ref_method, ?ContainerInterface $container)
                 {
-                    $this->php = $php;
                     $this->object = $object;
-                    $this->ref_method = new ReflectionMethod($this->object, $method);
+                    $this->ref_method = $ref_method;
                     $this->container = $container;
                 }
 
-                public function handle(ServerRequestInterface $request): ResponseInterface
+                public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
                 {
-
-
                     $args = [];
-
                     foreach ($this->ref_method->getParameters() as $param) {
 
-                        /*       foreach ($param->getAttributes() as $attribute) {
-                            if ($handler = $this->app->getParameterHandler($attribute->getName())) {
-                                $args[] = $handler->handle($request, $attribute, $param);
-                            } else {
-                                $args[] = null;
-                            }
-
-                            continue 2;
-                        } */
-
                         if ($type = $param->getType()) {
-
                             if ($type->getName() == ServerRequestInterface::class) {
                                 $args[] = $request;
                                 continue;
@@ -118,9 +107,9 @@ class RequestHandler implements MiddlewareInterface
                 }
             };
 
+            $middle->pipe($handler);
 
-
-            return $fallback_handler->handle($request);
+            return $middle->handle($request);
         }
 
         return new EmptyResponse(200);
