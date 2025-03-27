@@ -103,6 +103,9 @@ class Server
     {
         $server = $request->getServerParams();
         $base = $server['SCRIPT_NAME'];
+        if(!$base){
+            return "/";
+        }
         return  str_replace("\\", "/", dirname($base));
     }
 }
