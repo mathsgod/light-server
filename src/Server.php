@@ -13,7 +13,8 @@ use RecursiveIteratorIterator;
 class Server
 {
     private $container;
-
+    private $root;
+    private $base;
     public function __construct(?ContainerInterface $container = null)
     {
         $this->container = $container;
@@ -29,9 +30,7 @@ class Server
         $router = new Router();
 
         $router->addPatternMatcher("any", ".+");
-
-        $base_path = getcwd() . "/pages";
-
+        $base_path = $this->root . "/pages";
 
         //get all files in the directory, including subdirectories
 
@@ -39,8 +38,10 @@ class Server
             new \RecursiveDirectoryIterator($base_path)
         );
 
+
         $methods = ["GET", "POST", "PATCH", "PUT", "DELETE"];
-        foreach ($files as $key => $file) {
+        foreach ($files as $file) {
+
             if ($file->isFile()) {
 
                 /** @var \SplFileInfo $file */
@@ -54,10 +55,11 @@ class Server
 
                 foreach ($methods as $method) {
 
-
                     if ($file->getBasename() == "index.php") {
                         $p = str_replace("/index.php", "", $f);
-                        $router->map($method, $p, function (ServerRequestInterface $request, array $args) use ($file) {
+
+
+                        $router->map($method, $this->base . $p . "/", function (ServerRequestInterface $request, array $args) use ($file) {
                             return (new Server\RequestHandler($file, $this->container))->handle($request);
                         });
                         continue;
@@ -65,7 +67,7 @@ class Server
 
                     $p = str_replace(".php", "", $f);
 
-                    $router->map($method, $p, function (ServerRequestInterface $request, array $args) use ($file) {
+                    $router->map($method, $this->base . $p, function (ServerRequestInterface $request, array $args) use ($file) {
                         return (new Server\RequestHandler($file, $this->container))->handle($request);
                     });
                 }
@@ -79,8 +81,25 @@ class Server
     public function run()
     {
         $request = ServerRequestFactory::fromGlobals();
+        $this->root = $this->getRootPath($request);
+        $this->base = $this->getBasePath($request);
+
         $router = $this->getRouter();
         $response = $router->dispatch($request);
         (new SapiEmitter())->emit($response);
+    }
+
+
+    private function getRootPath(ServerRequestInterface $request)
+    {
+        $server = $request->getServerParams();
+        return dirname($server['SCRIPT_FILENAME']);
+    }
+
+    private function getBasePath(ServerRequestInterface $request)
+    {
+        $server = $request->getServerParams();
+        $base = $server['SCRIPT_NAME'];
+        return  str_replace("\\", "/", dirname($base));
     }
 }
