@@ -93,6 +93,9 @@ class Server
     private function getRootPath(ServerRequestInterface $request)
     {
         $server = $request->getServerParams();
+        if (!$server['SCRIPT_NAME']) {
+            return getcwd();
+        }
         return dirname($server['SCRIPT_FILENAME']);
     }
 
