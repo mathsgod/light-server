@@ -27,16 +27,6 @@ class RequestHandler implements MiddlewareInterface
         ob_end_clean();
 
         $this->middleware = new MiddlewarePipe();
-
-        foreach ($this->stub->middleware ?? [] as $middleware) {
-            $file = getcwd() . DIRECTORY_SEPARATOR . "middleware" . DIRECTORY_SEPARATOR . $middleware . ".php";
-            if (file_exists($file)) {
-                $middleware = require($file);
-                if ($middleware instanceof MiddlewareInterface) {
-                    $this->middleware->pipe($middleware);
-                }
-            }
-        }
     }
 
     function handle(ServerRequestInterface $request): ResponseInterface

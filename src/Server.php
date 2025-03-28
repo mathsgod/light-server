@@ -59,30 +59,22 @@ class Server implements RequestHandlerRunnerInterface
 
         foreach ($files as $file) {
             /** @var \SplFileInfo $file */
+            if ($file->getExtension() !== 'php') {
+                continue; // Skip non-PHP files
+            }
+
             $path = $file->getPathname();
-
-            //get the relative path to the file
-            $relative_path = str_replace($page_path, "", $path);
-
-
-            $relative_path = substr(realpath($path), strlen(realpath($page_path)));
-            $f = str_replace(DIRECTORY_SEPARATOR, "/", $relative_path);
+            $relative_path = substr($path, strlen($page_path));
+            $relative_path = str_replace(DIRECTORY_SEPARATOR, "/", $relative_path);
 
             foreach (self::HTTP_METHODS as $method) {
+                $routePath = $base . rtrim(str_replace(".php", "", $relative_path), "/");
 
-                if ($file->getBasename() == "index.php") {
-                    $p = str_replace("/index.php", "", $f);
-
-
-                    $router->map($method, $base . $p . "/", function (ServerRequestInterface $request, array $args) use ($file) {
-                        return (new Server\RequestHandler($file, $this->container))->handle($request);
-                    });
-                    continue;
+                if ($file->getBasename() === "index.php") {
+                    $routePath = rtrim(str_replace("/index", "", $routePath), "/") . "/";
                 }
 
-                $p = str_replace(".php", "", $f);
-
-                $router->map($method, $base . $p, function (ServerRequestInterface $request, array $args) use ($file) {
+                $router->map($method, $routePath, function (ServerRequestInterface $request, array $args) use ($file) {
                     return (new Server\RequestHandler($file, $this->container))->handle($request);
                 });
             }
