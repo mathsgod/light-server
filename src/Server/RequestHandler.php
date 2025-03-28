@@ -21,11 +21,7 @@ class RequestHandler implements MiddlewareInterface
     function __construct(string $file, ?ContainerInterface $container)
     {
         $this->container = $container;
-
-        ob_start();
         $this->stub = require($file);
-        ob_end_clean();
-
         $this->middleware = new MiddlewarePipe();
     }
 
@@ -41,6 +37,12 @@ class RequestHandler implements MiddlewareInterface
         $method = $request->getMethod();
         $ref_obj = new ReflectionObject($this->stub);
 
+
+        if (!$ref_obj->hasMethod($method)) {
+            return new EmptyResponse(405); // 或者返回一個自定義的錯誤響應
+        }
+
+
         if ($ref_obj->hasMethod($method)) {
             $middle = new MiddlewarePipe();
             $ref_method = $ref_obj->getMethod($method);
@@ -49,52 +51,7 @@ class RequestHandler implements MiddlewareInterface
                 $middle->pipe($attribute->newInstance());
             }
 
-            $handler = new class($this->stub, $ref_method, $this->container) implements MiddlewareInterface
-            {
-                private $object;
-                private $ref_method;
-                private $container;
-
-                public function __construct($object, $ref_method, ?ContainerInterface $container)
-                {
-                    $this->object = $object;
-                    $this->ref_method = $ref_method;
-                    $this->container = $container;
-                }
-
-                public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-                {
-                    $args = [];
-                    foreach ($this->ref_method->getParameters() as $param) {
-
-                        if ($type = $param->getType()) {
-                            if ($type->getName() == ServerRequestInterface::class) {
-                                $args[] = $request;
-                                continue;
-                            }
-
-                            if (assert($type instanceof ReflectionNamedType) && $this->container->has($type->getName())) {
-                                $args[] = $this->container->get($type->getName());
-                            } else {
-                                $args[] = null;
-                            }
-                        } else {
-                            $args[] = null;
-                        }
-                    }
-
-                    ob_start();
-                    $ret = $this->ref_method->invoke($this->object, ...$args);
-                    ob_get_contents();
-                    ob_end_clean();
-
-                    if ($ret instanceof ResponseInterface) {
-                        return $ret;
-                    }
-
-                    return new EmptyResponse(200);
-                }
-            };
+            $handler = new MethodMiddleware($this->stub, $ref_method, $this->container);
 
             $middle->pipe($handler);
 
