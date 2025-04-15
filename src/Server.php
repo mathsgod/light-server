@@ -103,7 +103,7 @@ class Server implements RequestHandlerRunnerInterface
     }
 
 
-    private function getRootPath(ServerRequestInterface $request)
+    public function getRootPath(ServerRequestInterface $request)
     {
         $server = $request->getServerParams();
         if (!$server['SCRIPT_NAME']) {
@@ -112,7 +112,7 @@ class Server implements RequestHandlerRunnerInterface
         return dirname($server['SCRIPT_FILENAME']);
     }
 
-    private function getBasePath(ServerRequestInterface $request)
+    public function getBasePath(ServerRequestInterface $request)
     {
         $server = $request->getServerParams();
         $base = $server['SCRIPT_NAME'];
