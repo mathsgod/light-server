@@ -48,8 +48,8 @@ class ServerTest extends TestCase
         $reflectionMethod = new \ReflectionMethod($object, 'GET');
         $middleware = new MethodMiddleware($object, $reflectionMethod, null);
 
-        $request = $this->createMock(ServerRequestInterface::class);
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $request = $this->createStub(ServerRequestInterface::class);
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn(new JsonResponse(['default' => 'response']));
 
         $response = $middleware->process($request, $handler);

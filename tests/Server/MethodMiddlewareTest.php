@@ -38,11 +38,11 @@ class MethodMiddlewareTest extends TestCase
         $reflectionMethod = new \ReflectionMethod($object, 'GET');
         $middleware = new MethodMiddleware($object, $reflectionMethod, null);
 
-        // 创建模拟请求
-        $request = $this->createMock(ServerRequestInterface::class);
+        // Create test stub for request
+        $request = $this->createStub(ServerRequestInterface::class);
         
-        // 创建模拟处理器
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        // Create test stub for handler
+        $handler = $this->createStub(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn(new JsonResponse(['default' => 'response']));
 
         $response = $middleware->process($request, $handler);
