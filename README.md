@@ -14,34 +14,34 @@ A lightweight PHP web framework with a simple file-based routing convention.
 
 Install via Composer:
 
-\\\ash
+```bash
 composer require mathsgod/light-server
-\\\
+```
 
 ## Quick Start
 
 ### Basic Setup
 
-1. Create a \pages\ folder in your project root
-2. Create a \pages/index.php\ file
+1. Create a `pages` folder in your project root
+2. Create a `pages/index.php` file
 
 ### Starting the Server
 
-\\\php
+```php
 <?php
 
 require 'vendor/autoload.php';
 
 (new Light\Server())->run();
-\\\
+```
 
 ## Usage
 
 ### Simple Example
 
-In \pages/index.php\:
+In `pages/index.php`:
 
-\\\php
+```php
 <?php
 
 use Laminas\Diactoros\Response\TextResponse;
@@ -58,28 +58,28 @@ return new class() {
         return new TextResponse("POST request received");
     }
 };
-\\\
+`
 
 ### Routing Structure
 
 The page system automatically generates routes based on the file structure:
 
-- \pages/index.php\ → \/\
-- \pages/about.php\ → \/about\
-- \pages/blog/index.php\ → \/blog\
-- \pages/blog/{id}/index.php\ → \/blog/{id}\ (dynamic routes)
+- `pages/index.php` → `/`
+- `pages/about.php` → `/about`
+- `pages/blog/index.php` → `/blog`
+- `pages/blog/{id}/index.php` → `/blog/{id}` (dynamic routes)
 
 ### Handling HTTP Methods
 
 Define corresponding methods in your page class:
 
-\\\php
+```php
 public function get() { }      // GET request
 public function post() { }     // POST request
 public function put() { }      // PUT request
 public function delete() { }   // DELETE request
 public function patch() { }    // PATCH request
-\\\
+```
 
 ## License
 
