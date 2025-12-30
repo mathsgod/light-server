@@ -1,49 +1,49 @@
-# PHPUnit 测试指南
+# PHPUnit Testing Guide
 
-## 快速开始
+## Quick Start
 
-### 运行所有测试
+### Run all tests
 ```bash
 ./vendor/bin/phpunit
 ```
 
-### 运行特定测试类
+### Run specific test class
 ```bash
 ./vendor/bin/phpunit tests/ServerTest.php
 ```
 
-### 运行特定测试方法
+### Run specific test method
 ```bash
 ./vendor/bin/phpunit --filter testMethodMiddlewareInstantiation
 ```
 
-### 生成代码覆盖报告
+### Generate code coverage report
 ```bash
 ./vendor/bin/phpunit --coverage-html coverage
 ```
 
-## 项目结构
+## Project Structure
 
 ```
 tests/
-├── ServerTest.php              # Server 组件测试
+├── ServerTest.php              # Server component tests
 └── Server/
-    └── MethodMiddlewareTest.php # 中间件测试
+    └── MethodMiddlewareTest.php # Middleware tests
 ```
 
-## 写测试的最佳实践
+## Best Practices for Writing Tests
 
-### 1. 测试命名约定
-- 测试类：`{ComponentName}Test`
-- 测试方法：`test{MethodName}{Scenario}`
+### 1. Test naming conventions
+- Test class: `{ComponentName}Test`
+- Test method: `test{MethodName}{Scenario}`
 
-### 2. 使用模拟对象
+### 2. Using mock objects
 ```php
 $mockRequest = $this->createMock(ServerRequestInterface::class);
 $mockRequest->method('getServerParams')->willReturn([...]);
 ```
 
-### 3. 断言示例
+### 3. Assertion examples
 ```php
 $this->assertInstanceOf(ClassName::class, $object);
 $this->assertEquals($expected, $actual);
@@ -51,24 +51,24 @@ $this->assertTrue($condition);
 $this->assertCount(5, $array);
 ```
 
-## 配置文件
+## Configuration Files
 
-- `phpunit.xml` - PHPUnit 主配置文件，定义了测试套件和输出格式
+- `phpunit.xml` - PHPUnit main configuration file, defines test suites and output format
 
-## composer.json 依赖
+## composer.json Dependencies
 
-已添加以下开发依赖：
-- `phpunit/phpunit: ^12` - PHPUnit 测试框架
+The following development dependencies have been added:
+- `phpunit/phpunit: ^12` - PHPUnit testing framework
 
-运行 `composer install` 来安装所有依赖。
+Run `composer install` to install all dependencies.
 
-## 常见问题
+## Frequently Asked Questions
 
-**Q: 如何排除某些目录？**
-编辑 `phpunit.xml` 的 `<exclude>` 标签。
+**Q: How do I exclude certain directories?**
+Edit the `<exclude>` tag in `phpunit.xml`.
 
-**Q: 如何提高测试速度？**
-使用 `--cache-result` 选项或并行运行测试。
+**Q: How do I improve test execution speed?**
+Use the `--cache-result` option or run tests in parallel.
 
-**Q: 如何测试私有方法？**
-使用反射或重构代码使其可测试。
+**Q: How do I test private methods?**
+Use reflection or refactor the code to make it testable.
