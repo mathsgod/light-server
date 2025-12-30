@@ -58,7 +58,7 @@ return new class() {
         return new TextResponse("POST request received");
     }
 };
-`
+```
 
 ### Routing Structure
 
