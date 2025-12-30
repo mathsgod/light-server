@@ -45,10 +45,14 @@ class MethodMiddleware implements MiddlewareInterface
 
         ob_start();
         $ret = $this->ref_method->invoke($this->object, ...$args);
-        ob_get_clean();
+        $output = ob_get_clean();
 
         if ($ret instanceof ResponseInterface) {
             return $ret;
+        }
+
+        if (!empty($output)) {
+            return new \Laminas\Diactoros\Response\TextResponse($output);
         }
 
         return new EmptyResponse(200);
