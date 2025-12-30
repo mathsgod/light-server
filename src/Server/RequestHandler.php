@@ -10,7 +10,6 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use ReflectionObject;
 use \Psr\Http\Server\MiddlewareInterface;
-use ReflectionNamedType;
 
 class RequestHandler implements MiddlewareInterface
 {
