@@ -20,7 +20,11 @@ class RequestHandler implements MiddlewareInterface
     function __construct(string $file, ?ContainerInterface $container)
     {
         $this->container = $container;
-        $this->stub = require($file);
+        $stub = require($file);
+        if (!is_object($stub)) {
+            throw new \RuntimeException("Page file must return an object: " . $file);
+        }
+        $this->stub = $stub;
         $this->middleware = new MiddlewarePipe();
     }
 
@@ -38,28 +42,23 @@ class RequestHandler implements MiddlewareInterface
 
 
         if (!$ref_obj->hasMethod($method)) {
-            return new EmptyResponse(405); // 或者返回一個自定義的錯誤響應
+            return new EmptyResponse(405);
         }
 
+        $middle = new MiddlewarePipe();
+        $ref_method = $ref_obj->getMethod($method);
 
-        if ($ref_obj->hasMethod($method)) {
-            $middle = new MiddlewarePipe();
-            $ref_method = $ref_obj->getMethod($method);
-
-            foreach ($ref_method->getAttributes() as $attribute) {
-                $instance = $attribute->newInstance();
-                if ($instance instanceof MiddlewareInterface) {
-                    $middle->pipe($instance);
-                }
+        foreach ($ref_method->getAttributes() as $attribute) {
+            $instance = $attribute->newInstance();
+            if ($instance instanceof MiddlewareInterface) {
+                $middle->pipe($instance);
             }
-
-            $handler = new MethodMiddleware($this->stub, $ref_method, $this->container);
-
-            $middle->pipe($handler);
-
-            return $middle->handle($request);
         }
 
-        return new EmptyResponse(200);
+        $handler = new MethodMiddleware($this->stub, $ref_method, $this->container);
+
+        $middle->pipe($handler);
+
+        return $middle->handle($request);
     }
 }
