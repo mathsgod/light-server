@@ -81,6 +81,20 @@ public function delete() { }   // DELETE request
 public function patch() { }    // PATCH request
 ```
 
+### Security Headers
+
+You can optionally add the built-in `SecurityHeadersMiddleware` to include common security response headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Content-Security-Policy`):
+
+```php
+<?php
+
+require 'vendor/autoload.php';
+
+$server = new Light\Server();
+$server->pipe(new Light\Server\SecurityHeadersMiddleware());
+$server->run();
+```
+
 ## License
 
 See the LICENSE file for details.
