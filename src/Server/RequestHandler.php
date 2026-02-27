@@ -47,7 +47,10 @@ class RequestHandler implements MiddlewareInterface
             $ref_method = $ref_obj->getMethod($method);
 
             foreach ($ref_method->getAttributes() as $attribute) {
-                $middle->pipe($attribute->newInstance());
+                $instance = $attribute->newInstance();
+                if ($instance instanceof MiddlewareInterface) {
+                    $middle->pipe($instance);
+                }
             }
 
             $handler = new MethodMiddleware($this->stub, $ref_method, $this->container);

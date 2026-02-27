@@ -43,15 +43,21 @@ class MethodMiddleware implements MiddlewareInterface
             }
         }
 
+        $previousLevel = error_reporting(0);
         ob_start();
-        $ret = $this->ref_method->invoke($this->object, ...$args);
-        $output = ob_get_clean();
+        try {
+            $ret = $this->ref_method->invoke($this->object, ...$args);
+        } finally {
+            $output = ob_get_clean();
+            error_reporting($previousLevel);
+        }
 
         if ($ret instanceof ResponseInterface) {
             return $ret;
         }
 
         if (!empty($output)) {
+            // Only return captured output if no errors were suppressed
             return new \Laminas\Diactoros\Response\TextResponse($output);
         }
 
