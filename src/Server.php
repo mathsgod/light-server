@@ -33,27 +33,16 @@ class Server implements RequestHandlerRunnerInterface
 
         //get all files in the directory, including subdirectories
 
-        $files = $this->scanFiles($page_path);
-
-        foreach ($files as $file) {
-            /** @var \SplFileInfo $file */
+        foreach ($this->scanFiles($page_path) as $file) {
             if ($file->getExtension() !== 'php') {
-                continue; // Skip non-PHP files
+                continue;
             }
 
-            $path = $file->getPathname();
-            $relative_path = substr($path, strlen($page_path));
-            $relative_path = str_replace(DIRECTORY_SEPARATOR, "/", $relative_path);
+            $routePath = $this->resolveRoutePath($base, $page_path, $file);
 
             foreach (self::HTTP_METHODS as $method) {
-                $routePath = $base . rtrim(str_replace(".php", "", $relative_path), "/");
-
-                if ($file->getBasename() === "index.php") {
-                    $routePath = rtrim(str_replace("/index", "", $routePath), "/") . "/";
-                }
-
                 $router->map($method, $routePath, function (ServerRequestInterface $request, array $args) use ($file) {
-                    return (new Server\RequestHandler($file, $this->container))->handle($request);
+                    return (new Server\RequestHandler($file->getPathname(), $this->container))->handle($request);
                 });
             }
         }
@@ -66,6 +55,18 @@ class Server implements RequestHandlerRunnerInterface
         return $this->container;
     }
 
+
+    private function resolveRoutePath(string $base, string $pagePath, \SplFileInfo $file): string
+    {
+        $relative = str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), strlen($pagePath)));
+        $routePath = $base . rtrim(str_replace('.php', '', $relative), '/');
+
+        if ($file->getBasename() === 'index.php') {
+            $routePath = rtrim(str_replace('/index', '', $routePath), '/') . '/';
+        }
+
+        return $routePath;
+    }
 
     private function scanFiles(string $path): \Generator
     {
