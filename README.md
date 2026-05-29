@@ -1,18 +1,22 @@
 # Light Server
 
-A lightweight PHP web framework with a simple file-based routing convention.
+A lightweight PHP 8.1+ web framework with file-based routing, PSR-7 support, and automatic dependency injection.
+
+## Requirements
+
+- PHP 8.1+
 
 ## Features
 
-- 🚀 Lightweight design and fast startup
-- 📄 File-system based routing
-- 🛠️ PSR-7 standard support
-- 💪 Built-in middleware system
-- 🔄 Simple HTTP method handling (GET, POST, etc.)
+- 📄 **File-system based routing** — drop a file in `pages/`, get a route automatically
+- 🔀 **Dynamic routes** — `pages/blog/{id}/index.php` → `/blog/{id}`
+- 🛠️ **PSR-7 / PSR-15 standard** — standard HTTP message and middleware interfaces
+- 💉 **Automatic dependency injection** — method parameters resolved from a PSR-11 container
+- 🎯 **Attribute-based middleware** — attach PSR-15 middleware directly to handler methods via PHP attributes
+- 💪 **Global middleware** — pipe middleware at the server level
+- 🔒 **Built-in security headers** — optional `SecurityHeadersMiddleware`
 
 ## Installation
-
-Install via Composer:
 
 ```bash
 composer require mathsgod/light-server
@@ -20,76 +24,168 @@ composer require mathsgod/light-server
 
 ## Quick Start
 
-### Basic Setup
-
-1. Create a `pages` folder in your project root
-2. Create a `pages/index.php` file
-
-### Starting the Server
+### 1. Create an entry point
 
 ```php
 <?php
+// public/index.php
 
 require 'vendor/autoload.php';
 
 (new Light\Server())->run();
 ```
 
-## Usage
-
-### Simple Example
-
-In `pages/index.php`:
+### 2. Create a page handler
 
 ```php
 <?php
+// pages/index.php
 
 use Laminas\Diactoros\Response\TextResponse;
 
-return new class() {
-    
-    public function get()
+return new class {
+    public function get(): TextResponse
     {
-        return new TextResponse("Hello World");
+        return new TextResponse("Hello, World!");
     }
 
-    public function post()
+    public function post(): TextResponse
     {
         return new TextResponse("POST request received");
     }
 };
 ```
 
-### Routing Structure
+## Routing
 
-The page system automatically generates routes based on the file structure:
+Routes are generated automatically from the `pages/` directory structure:
 
-- `pages/index.php` → `/`
-- `pages/about.php` → `/about`
-- `pages/blog/index.php` → `/blog`
-- `pages/blog/{id}/index.php` → `/blog/{id}` (dynamic routes)
+| File | Route |
+|------|-------|
+| `pages/index.php` | `/` |
+| `pages/about.php` | `/about` |
+| `pages/blog/index.php` | `/blog/` |
+| `pages/blog/{id}/index.php` | `/blog/{id}` |
 
-### Handling HTTP Methods
+> If the `pages/` directory does not exist, the server starts normally with no routes.
 
-Define corresponding methods in your page class:
+### HTTP Methods
+
+Define public methods matching the HTTP verb (case-insensitive):
 
 ```php
-public function get() { }      // GET request
-public function post() { }     // POST request
-public function put() { }      // PUT request
-public function delete() { }   // DELETE request
-public function patch() { }    // PATCH request
+return new class {
+    public function get(): ResponseInterface { }
+    public function post(): ResponseInterface { }
+    public function put(): ResponseInterface { }
+    public function delete(): ResponseInterface { }
+    public function patch(): ResponseInterface { }
+};
 ```
 
-### Security Headers
+### Dynamic Routes
 
-You can optionally add the built-in `SecurityHeadersMiddleware` to include common security response headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Content-Security-Policy`):
+Route parameters are available via `$request->getAttribute()`:
 
 ```php
 <?php
+// pages/blog/{id}/index.php
 
-require 'vendor/autoload.php';
+use Laminas\Diactoros\Response\JsonResponse;
+use Psr\Http\Message\ServerRequestInterface;
 
+return new class {
+    public function get(ServerRequestInterface $request): JsonResponse
+    {
+        $id = $request->getAttribute('id');
+        return new JsonResponse(['id' => $id]);
+    }
+};
+```
+
+## Dependency Injection
+
+Method parameters are resolved automatically by type hint:
+
+- `ServerRequestInterface` — injects the current HTTP request
+- Any other type hint — resolved from the PSR-11 container (if provided)
+- Unresolvable parameters — receive `null`
+
+```php
+<?php
+// pages/users.php
+
+use Laminas\Diactoros\Response\JsonResponse;
+use Psr\Http\Message\ServerRequestInterface;
+
+return new class {
+    public function get(ServerRequestInterface $request, UserRepository $repo): JsonResponse
+    {
+        return new JsonResponse($repo->findAll());
+    }
+};
+```
+
+Pass a PSR-11 container when creating the server:
+
+```php
+$container = /* your PSR-11 container */;
+(new Light\Server($container))->run();
+```
+
+## Middleware
+
+### Global Middleware
+
+Use `pipe()` to apply middleware to all routes:
+
+```php
+$server = new Light\Server();
+$server->pipe(new Light\Server\SecurityHeadersMiddleware());
+$server->run();
+```
+
+### Attribute-based Middleware (per method)
+
+Attach PSR-15 middleware to a specific handler method using PHP attributes:
+
+```php
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+
+#[\Attribute]
+class AuthMiddleware implements MiddlewareInterface
+{
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+    {
+        // auth logic ...
+        return $handler->handle($request);
+    }
+}
+
+return new class {
+    #[AuthMiddleware]
+    public function get(): ResponseInterface { /* ... */ }
+};
+```
+
+## Built-in Middleware
+
+### SecurityHeadersMiddleware
+
+Adds common security response headers:
+
+| Header | Value |
+|--------|-------|
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `X-XSS-Protection` | `1; mode=block` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Content-Security-Policy` | `default-src 'self'` |
+
+```php
 $server = new Light\Server();
 $server->pipe(new Light\Server\SecurityHeadersMiddleware());
 $server->run();
@@ -97,4 +193,4 @@ $server->run();
 
 ## License
 
-See the LICENSE file for details.
+MIT — see the LICENSE file for details.
