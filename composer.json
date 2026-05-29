@@ -1,5 +1,6 @@
 {
     "name": "mathsgod/light-server",
+    "description": "A lightweight PHP 8.1+ file-based routing server inspired by Nuxt.js pages, built on PSR-7/PSR-15 with League Route and Laminas.",
     "authors": [
         {
             "name": "Raymond Chong",
