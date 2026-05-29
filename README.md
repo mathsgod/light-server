@@ -218,6 +218,37 @@ return new class {
 
 ## Built-in Middleware
 
+### CorsMiddleware
+
+Handles CORS preflight (`OPTIONS`) requests and adds CORS headers to all responses.
+
+- `OPTIONS` requests are intercepted **before routing** and return `204 No Content` with CORS headers
+- All other requests pass through normally with CORS headers appended
+
+```php
+$server = new Light\Server();
+$server->pipe(new Light\Server\CorsMiddleware(
+    allowedOrigins:   ['https://example.com'],
+    allowedMethods:   ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders:   ['Content-Type', 'Authorization'],
+    allowCredentials: true,
+    maxAge:           3600,
+));
+$server->run();
+```
+
+All constructor parameters are optional:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `allowedOrigins` | `['*']` | Allowed origins. Use `['*']` for wildcard |
+| `allowedMethods` | `['GET','POST','PUT','PATCH','DELETE','OPTIONS']` | Allowed HTTP methods |
+| `allowedHeaders` | `['Content-Type','Authorization']` | Allowed request headers |
+| `allowCredentials` | `false` | Set `true` to send `Access-Control-Allow-Credentials: true` |
+| `maxAge` | `86400` | Preflight cache duration in seconds |
+
+> **Note:** When using `allowCredentials: true`, `allowedOrigins` must list specific origins — wildcard `*` does not work with credentials.
+
 ### SecurityHeadersMiddleware
 
 Adds common security response headers:
