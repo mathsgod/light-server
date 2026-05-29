@@ -103,6 +103,51 @@ return new class {
 };
 ```
 
+### Route Constraints
+
+Since routing is powered by [League\Route](https://route.thephpleague.com/), you can constrain route parameters directly in the folder/file name using `{param:type}` syntax:
+
+| Constraint | Pattern | Example match |
+|------------|---------|---------------|
+| `{id:number}` | `[0-9]+` | `123` |
+| `{name:word}` | `[a-zA-Z]+` | `raymond` |
+| `{slug:slug}` | `[a-z0-9-]+` | `my-post` |
+| `{token:alphanum_dash}` | `[a-zA-Z0-9-_]+` | `abc-123_x` |
+| `{id:uuid}` | UUID format | `550e8400-e29b-41d4-a716-446655440000` |
+| `{path:any}` | `.+` | `foo/bar/baz` |
+
+**Example:** Only match when `id` is numeric and `name` is alphabetic:
+
+```
+pages/
+└── user/
+    └── {id:number}/
+        └── {name:word}/
+            └── index.php   →   /user/{id:number}/{name:word}/
+```
+
+```
+/user/1/raymond/   ✅  matches  (id=1, name=raymond)
+/user/test/raymond/ ❌  no match (id is not numeric)
+```
+
+```php
+<?php
+// pages/user/{id:number}/{name:word}/index.php
+
+use Laminas\Diactoros\Response\TextResponse;
+use Psr\Http\Message\ServerRequestInterface;
+
+return new class {
+    public function get(ServerRequestInterface $request): TextResponse
+    {
+        $id   = $request->getAttribute('id');
+        $name = $request->getAttribute('name');
+        return new TextResponse("User ID: $id, Name: $name");
+    }
+};
+```
+
 ## Dependency Injection
 
 Method parameters are resolved automatically by type hint:

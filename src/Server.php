@@ -2,13 +2,17 @@
 
 namespace Light;
 
+use Laminas\Diactoros\Response\EmptyResponse;
 use Laminas\Diactoros\ServerRequestFactory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Laminas\HttpHandlerRunner\RequestHandlerRunnerInterface;
+use Laminas\Stratigility\MiddlewarePipe;
 use League\Route\Router;
 use Psr\Container\ContainerInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 class Server implements RequestHandlerRunnerInterface
 {
     private const HTTP_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"];
@@ -105,7 +109,24 @@ class Server implements RequestHandlerRunnerInterface
         foreach ($this->middleware as $middleware) {
             $this->router->middleware($middleware);
         }
-        $response = $this->router->dispatch($this->request);
+
+        if ($this->request->getMethod() === 'OPTIONS') {
+            $pipe = new MiddlewarePipe();
+            foreach ($this->middleware as $middleware) {
+                $pipe->pipe($middleware);
+            }
+            // Fallback: return 204 if no middleware handled the preflight
+            $pipe->pipe(new class implements MiddlewareInterface {
+                public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+                {
+                    return new EmptyResponse(204);
+                }
+            });
+            $response = $pipe->handle($this->request);
+        } else {
+            $response = $this->router->dispatch($this->request);
+        }
+
         (new SapiEmitter())->emit($response);
     }
 
