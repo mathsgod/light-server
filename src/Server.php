@@ -9,16 +9,13 @@ use League\Route\Router;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-
 class Server implements RequestHandlerRunnerInterface
 {
     private const HTTP_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"];
 
-    private $container;
-    private $router;
-    private $request;
+    private ?ContainerInterface $container;
+    private Router $router;
+    private ServerRequestInterface $request;
 
     public function __construct(?ContainerInterface $container = null)
     {
@@ -72,6 +69,10 @@ class Server implements RequestHandlerRunnerInterface
 
     private function scanFiles(string $path): \Generator
     {
+        if (!is_dir($path)) {
+            return;
+        }
+
         try {
             $files = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator($path)
@@ -87,13 +88,13 @@ class Server implements RequestHandlerRunnerInterface
         }
     }
 
-    public function getRouter()
+    public function getRouter(): Router
     {
         return $this->router;
     }
 
-    public $middleware = [];
-    public function pipe(MiddlewareInterface $middleware)
+    public array $middleware = [];
+    public function pipe(MiddlewareInterface $middleware): void
     {
         $this->middleware[] = $middleware;
     }
@@ -108,22 +109,24 @@ class Server implements RequestHandlerRunnerInterface
     }
 
 
-    public function getRootPath()
+    public function getRootPath(): string
     {
         $server = $this->request->getServerParams();
-        if (!$server['SCRIPT_NAME']) {
+        $filename = $server['SCRIPT_FILENAME'] ?? null;
+        if (!$filename) {
             return getcwd();
         }
-        return dirname($server['SCRIPT_FILENAME']);
+        return dirname($filename);
     }
 
-    public function getBasePath()
+    public function getBasePath(): string
     {
         $server = $this->request->getServerParams();
-        $base = $server['SCRIPT_NAME'];
+        $base = $server['SCRIPT_NAME'] ?? null;
         if (!$base) {
-            return "/";
+            return "";
         }
-        return  str_replace("\\", "/", dirname($base));
+        $dir = str_replace("\\", "/", dirname($base));
+        return $dir === "/" ? "" : $dir;
     }
 }

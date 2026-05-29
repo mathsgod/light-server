@@ -8,15 +8,16 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use ReflectionMethod;
 use ReflectionNamedType;
 
 class MethodMiddleware implements MiddlewareInterface
 {
-    private $object;
-    private $ref_method;
-    private $container;
+    private object $object;
+    private ReflectionMethod $ref_method;
+    private ?ContainerInterface $container;
 
-    public function __construct($object, $ref_method, ?ContainerInterface $container)
+    public function __construct(object $object, ReflectionMethod $ref_method, ?ContainerInterface $container)
     {
         $this->object = $object;
         $this->ref_method = $ref_method;
@@ -27,29 +28,32 @@ class MethodMiddleware implements MiddlewareInterface
     {
         $args = [];
         foreach ($this->ref_method->getParameters() as $param) {
-            if ($type = $param->getType()) {
-                if ($type->getName() == ServerRequestInterface::class) {
-                    $args[] = $request;
-                    continue;
-                }
+            $type = $param->getType();
 
-                if ($type instanceof ReflectionNamedType && $this->container && $this->container->has($type->getName())) {
-                    $args[] = $this->container->get($type->getName());
-                } else {
-                    $args[] = null;
-                }
-            } else {
+            if (!$type instanceof ReflectionNamedType) {
                 $args[] = null;
+                continue;
             }
+
+            if ($type->getName() === ServerRequestInterface::class) {
+                $args[] = $request;
+                continue;
+            }
+
+            $args[] = $this->container?->has($type->getName())
+                ? $this->container->get($type->getName())
+                : null;
         }
 
-        $previousLevel = error_reporting(0);
+        set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline): bool {
+            throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
+        });
         ob_start();
         try {
             $ret = $this->ref_method->invoke($this->object, ...$args);
         } finally {
             $output = ob_get_clean();
-            error_reporting($previousLevel);
+            restore_error_handler();
         }
 
         if ($ret instanceof ResponseInterface) {

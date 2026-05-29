@@ -13,11 +13,11 @@ use \Psr\Http\Server\MiddlewareInterface;
 
 class RequestHandler implements MiddlewareInterface
 {
-    private $stub;
-    public $middleware;
-    private $container;
+    private object $stub;
+    private MiddlewarePipe $middleware;
+    private ?ContainerInterface $container;
 
-    function __construct(string $file, ?ContainerInterface $container)
+    public function __construct(string $file, ?ContainerInterface $container)
     {
         $this->container = $container;
         $stub = require($file);
@@ -28,7 +28,7 @@ class RequestHandler implements MiddlewareInterface
         $this->middleware = new MiddlewarePipe();
     }
 
-    function handle(ServerRequestInterface $request): ResponseInterface
+    public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $this->middleware->pipe($this);
         return $this->middleware->handle($request);
