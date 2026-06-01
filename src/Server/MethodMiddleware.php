@@ -46,6 +46,9 @@ class MethodMiddleware implements MiddlewareInterface
         }
 
         set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline): bool {
+            if (!(error_reporting() & $errno)) {
+                return false;
+            }
             throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
         });
         ob_start();
