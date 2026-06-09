@@ -163,7 +163,13 @@ class MethodMiddlewareTest extends TestCase
 
         $middleware = new MethodMiddleware($object, new \ReflectionMethod($object, 'GET'), null);
 
-        $this->expectException(\ErrorException::class);
-        $middleware->process($this->request, $this->handler);
+        $previous = error_reporting();
+        error_reporting(E_ALL);
+        try {
+            $this->expectException(\ErrorException::class);
+            $middleware->process($this->request, $this->handler);
+        } finally {
+            error_reporting($previous);
+        }
     }
 }
