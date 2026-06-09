@@ -1,5 +1,7 @@
 # Light Server
 
+[![Tests](https://github.com/mathsgod/light-server/actions/workflows/tests.yml/badge.svg)](https://github.com/mathsgod/light-server/actions/workflows/tests.yml)
+
 A lightweight PHP 8.1+ web framework with file-based routing, PSR-7 support, and automatic dependency injection.
 
 ## Requirements
