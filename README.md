@@ -267,6 +267,15 @@ $server->pipe(new Light\Server\SecurityHeadersMiddleware());
 $server->run();
 ```
 
+## Testing
+
+```bash
+composer install
+./vendor/bin/phpunit
+```
+
+The test suite runs against **PHP 8.1, 8.2, 8.3, 8.4, and 8.5** via the GitHub Actions matrix in `.github/workflows/tests.yml`.
+
 ## License
 
 MIT — see the LICENSE file for details.
