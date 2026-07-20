@@ -18,7 +18,13 @@ class CorsMiddleware implements MiddlewareInterface
         private array $allowedHeaders = ['Content-Type', 'Authorization'],
         private bool $allowCredentials = false,
         private int $maxAge = 86400,
-    ) {}
+    ) {
+        if ($this->allowCredentials && in_array('*', $this->allowedOrigins, true)) {
+            throw new \InvalidArgumentException(
+                'allowCredentials requires explicit allowedOrigins; wildcard origins are not allowed'
+            );
+        }
+    }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
@@ -37,6 +43,10 @@ class CorsMiddleware implements MiddlewareInterface
 
     private function addCorsHeaders(ResponseInterface $response, string $origin): ResponseInterface
     {
+        if ($origin !== '' && !in_array('*', $this->allowedOrigins, true)) {
+            $response = $this->addVaryOrigin($response);
+        }
+
         $allowedOrigin = $this->resolveOrigin($origin);
 
         if ($allowedOrigin === '') {
@@ -54,6 +64,26 @@ class CorsMiddleware implements MiddlewareInterface
         }
 
         return $response;
+    }
+
+    private function addVaryOrigin(ResponseInterface $response): ResponseInterface
+    {
+        $vary = trim($response->getHeaderLine('Vary'));
+
+        if ($vary === '*') {
+            return $response;
+        }
+
+        $varyValues = $vary === ''
+            ? []
+            : array_values(array_filter(array_map('trim', explode(',', $vary))));
+
+        $normalizedValues = array_map('strtolower', $varyValues);
+        if (!in_array('origin', $normalizedValues, true)) {
+            $varyValues[] = 'Origin';
+        }
+
+        return $response->withHeader('Vary', implode(', ', $varyValues));
     }
 
     private function resolveOrigin(string $origin): string

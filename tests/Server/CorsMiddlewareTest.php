@@ -80,6 +80,7 @@ class CorsMiddlewareTest extends TestCase
         $response = $middleware->process($this->makeRequest('GET', 'https://example.com'), $this->makeHandler());
 
         $this->assertEquals('https://example.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
+        $this->assertEquals('Origin', $response->getHeaderLine('Vary'));
     }
 
     // 不在允許列表的 origin 唔應加 CORS headers
@@ -89,15 +90,43 @@ class CorsMiddlewareTest extends TestCase
         $response = $middleware->process($this->makeRequest('GET', 'https://evil.com'), $this->makeHandler());
 
         $this->assertEmpty($response->getHeaderLine('Access-Control-Allow-Origin'));
+        $this->assertEquals('Origin', $response->getHeaderLine('Vary'));
     }
 
     // allowCredentials = true 應加 Allow-Credentials header
     public function testAllowCredentialsHeader(): void
     {
-        $middleware = new CorsMiddleware(allowCredentials: true);
+        $middleware = new CorsMiddleware(
+            allowedOrigins: ['https://example.com'],
+            allowCredentials: true,
+        );
         $response = $middleware->process($this->makeRequest('GET'), $this->makeHandler());
 
         $this->assertEquals('true', $response->getHeaderLine('Access-Control-Allow-Credentials'));
+    }
+
+    public function testWildcardOriginCannotBeUsedWithCredentials(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('allowCredentials requires explicit allowedOrigins');
+
+        new CorsMiddleware(allowCredentials: true);
+    }
+
+    public function testSpecificOriginPreservesExistingVaryHeader(): void
+    {
+        $handler = $this->createStub(RequestHandlerInterface::class);
+        $handler->method('handle')->willReturn(
+            (new JsonResponse(['ok' => true]))->withHeader('Vary', 'Accept-Encoding')
+        );
+
+        $middleware = new CorsMiddleware(allowedOrigins: ['https://example.com']);
+        $response = $middleware->process(
+            $this->makeRequest('GET', 'https://example.com'),
+            $handler
+        );
+
+        $this->assertEquals('Accept-Encoding, Origin', $response->getHeaderLine('Vary'));
     }
 
     // allowCredentials = false（預設）唔應有 Allow-Credentials header

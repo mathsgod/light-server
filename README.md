@@ -257,7 +257,7 @@ All constructor parameters are optional:
 | `allowCredentials` | `false` | Set `true` to send `Access-Control-Allow-Credentials: true` |
 | `maxAge` | `86400` | Preflight cache duration in seconds |
 
-> **Note:** When using `allowCredentials: true`, `allowedOrigins` must list specific origins — wildcard `*` does not work with credentials.
+> **Note:** When using `allowCredentials: true`, `allowedOrigins` must list specific origins — wildcard `*` does not work with credentials and raises an `InvalidArgumentException`.
 
 ### SecurityHeadersMiddleware
 
