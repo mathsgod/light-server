@@ -78,12 +78,15 @@ Define public methods matching the HTTP verb (case-insensitive):
 ```php
 return new class {
     public function get(): ResponseInterface { }
+    public function head(): ResponseInterface { }
     public function post(): ResponseInterface { }
     public function put(): ResponseInterface { }
     public function delete(): ResponseInterface { }
     public function patch(): ResponseInterface { }
 };
 ```
+
+`HEAD` requests use the `head()` method when defined; otherwise they reuse `get()` and return the response headers without a body.
 
 ### Dynamic Routes
 

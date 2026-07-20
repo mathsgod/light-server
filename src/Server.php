@@ -15,7 +15,7 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 class Server implements RequestHandlerRunnerInterface
 {
-    private const HTTP_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"];
+    private const HTTP_METHODS = ["GET", "HEAD", "POST", "PATCH", "PUT", "DELETE"];
 
     private ?ContainerInterface $container;
     private Router $router;

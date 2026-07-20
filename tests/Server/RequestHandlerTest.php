@@ -78,6 +78,25 @@ return new class {
         $this->assertStringContainsString('"status":"ok"', (string) $response->getBody());
     }
 
+    public function testHandlesHeadUsingGetWithoutReturningBody(): void
+    {
+        $this->writePageFile('
+return new class {
+    public function GET(\Psr\Http\Message\ServerRequestInterface $r): \Psr\Http\Message\ResponseInterface {
+        return new \Laminas\Diactoros\Response\TextResponse("hello", 200, ["X-Test" => "present"]);
+    }
+};');
+
+        $handler = new RequestHandler($this->tempFile, null);
+        $request = new ServerRequest([], [], '/', 'HEAD');
+
+        $response = $handler->handle($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('present', $response->getHeaderLine('X-Test'));
+        $this->assertEquals('', (string) $response->getBody());
+    }
+
     // echo 輸出應包裝成 TextResponse
     public function testHandlesEchoOutput(): void
     {

@@ -3,6 +3,7 @@
 namespace Light\Server;
 
 use Laminas\Diactoros\Response\EmptyResponse;
+use Laminas\Diactoros\Stream;
 use Laminas\Stratigility\MiddlewarePipe;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -38,15 +39,19 @@ class RequestHandler implements MiddlewareInterface
     {
 
         $method = $request->getMethod();
+        $isHead = $method === 'HEAD';
         $ref_obj = new ReflectionObject($this->stub);
 
+        // HEAD has the same semantics as GET unless the page provides
+        // an explicit HEAD handler.
+        $handlerMethod = $isHead && !$ref_obj->hasMethod('HEAD') ? 'GET' : $method;
 
-        if (!$ref_obj->hasMethod($method)) {
+        if (!$ref_obj->hasMethod($handlerMethod)) {
             return new EmptyResponse(405);
         }
 
         $middle = new MiddlewarePipe();
-        $ref_method = $ref_obj->getMethod($method);
+        $ref_method = $ref_obj->getMethod($handlerMethod);
 
         foreach ($ref_method->getAttributes() as $attribute) {
             $instance = $attribute->newInstance();
@@ -59,6 +64,12 @@ class RequestHandler implements MiddlewareInterface
 
         $middle->pipe($handler);
 
-        return $middle->handle($request);
+        $response = $middle->handle($request);
+
+        if ($isHead) {
+            return $response->withBody(new Stream('php://temp', 'r+'));
+        }
+
+        return $response;
     }
 }

@@ -106,6 +106,41 @@ return new class {
             unlink($tempFile);
         }
     }
+
+    public function testServerRoutesHeadRequests(): void
+    {
+        $root = sys_get_temp_dir() . '/light-server-' . bin2hex(random_bytes(8));
+        $pages = $root . '/pages';
+        mkdir($pages, 0777, true);
+        file_put_contents($root . '/index.php', '<?php');
+        file_put_contents($pages . '/index.php', <<<'PHP'
+<?php
+return new class {
+    public function GET(): \Psr\Http\Message\ResponseInterface
+    {
+        return new \Laminas\Diactoros\Response\TextResponse('hello');
+    }
+};
+PHP
+        );
+
+        $serverParams = $_SERVER;
+        $_SERVER['SCRIPT_FILENAME'] = $root . '/index.php';
+        $_SERVER['SCRIPT_NAME'] = '/index.php';
+
+        try {
+            $server = new \Light\Server();
+            $request = new \Laminas\Diactoros\ServerRequest([], [], '/', 'HEAD');
+            $response = $server->getRouter()->dispatch($request);
+
+            $this->assertEquals(200, $response->getStatusCode());
+            $this->assertEquals('', (string) $response->getBody());
+        } finally {
+            $_SERVER = $serverParams;
+            unlink($pages . '/index.php');
+            unlink($root . '/index.php');
+            rmdir($pages);
+            rmdir($root);
+        }
+    }
 }
-
-
