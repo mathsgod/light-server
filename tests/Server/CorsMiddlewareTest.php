@@ -19,17 +19,25 @@ class CorsMiddlewareTest extends TestCase
         return $handler;
     }
 
-    private function makeRequest(string $method, string $origin = 'https://example.com'): ServerRequestInterface
+    private function makeRequest(
+        string $method,
+        string $origin = 'https://example.com',
+        bool $preflight = false
+    ): ServerRequestInterface
     {
-        return (new ServerRequest([], [], '/', $method))
+        $request = (new ServerRequest([], [], '/', $method))
             ->withHeader('Origin', $origin);
+
+        return $preflight
+            ? $request->withHeader('Access-Control-Request-Method', 'POST')
+            : $request;
     }
 
     // OPTIONS preflight 應返 204，唔 call handler
     public function testOptionsPreflightReturns204(): void
     {
         $middleware = new CorsMiddleware();
-        $response = $middleware->process($this->makeRequest('OPTIONS'), $this->makeHandler());
+        $response = $middleware->process($this->makeRequest('OPTIONS', preflight: true), $this->makeHandler());
 
         $this->assertEquals(204, $response->getStatusCode());
     }
@@ -38,7 +46,7 @@ class CorsMiddlewareTest extends TestCase
     public function testOptionsPreflightHasCorsHeaders(): void
     {
         $middleware = new CorsMiddleware();
-        $response = $middleware->process($this->makeRequest('OPTIONS'), $this->makeHandler());
+        $response = $middleware->process($this->makeRequest('OPTIONS', preflight: true), $this->makeHandler());
 
         $this->assertEquals('*', $response->getHeaderLine('Access-Control-Allow-Origin'));
         $this->assertNotEmpty($response->getHeaderLine('Access-Control-Allow-Methods'));
@@ -51,6 +59,15 @@ class CorsMiddlewareTest extends TestCase
     {
         $middleware = new CorsMiddleware();
         $response = $middleware->process($this->makeRequest('GET'), $this->makeHandler());
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('*', $response->getHeaderLine('Access-Control-Allow-Origin'));
+    }
+
+    public function testNonPreflightOptionsPassesThroughToHandler(): void
+    {
+        $middleware = new CorsMiddleware();
+        $response = $middleware->process($this->makeRequest('OPTIONS'), $this->makeHandler());
 
         $this->assertEquals(200, $response->getStatusCode());
         $this->assertEquals('*', $response->getHeaderLine('Access-Control-Allow-Origin'));

@@ -47,6 +47,10 @@ class RequestHandler implements MiddlewareInterface
         $handlerMethod = $isHead && !$ref_obj->hasMethod('HEAD') ? 'GET' : $method;
 
         if (!$ref_obj->hasMethod($handlerMethod)) {
+            if ($method === 'OPTIONS') {
+                return new EmptyResponse(204);
+            }
+
             return new EmptyResponse(405);
         }
 

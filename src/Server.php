@@ -2,20 +2,16 @@
 
 namespace Light;
 
-use Laminas\Diactoros\Response\EmptyResponse;
 use Laminas\Diactoros\ServerRequestFactory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Laminas\HttpHandlerRunner\RequestHandlerRunnerInterface;
-use Laminas\Stratigility\MiddlewarePipe;
 use League\Route\Router;
 use Psr\Container\ContainerInterface;
-use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
-use Psr\Http\Server\RequestHandlerInterface;
 class Server implements RequestHandlerRunnerInterface
 {
-    private const HTTP_METHODS = ["GET", "HEAD", "POST", "PATCH", "PUT", "DELETE"];
+    private const HTTP_METHODS = ["GET", "HEAD", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"];
 
     private ?ContainerInterface $container;
     private Router $router;
@@ -33,7 +29,7 @@ class Server implements RequestHandlerRunnerInterface
         $router = new Router();
 
         $router->addPatternMatcher("any", ".+");
-        $page_path = $root . "/pages";
+        $page_path = $this->getPagesPath($root);
 
         //get all files in the directory, including subdirectories
 
@@ -110,22 +106,7 @@ class Server implements RequestHandlerRunnerInterface
             $this->router->middleware($middleware);
         }
 
-        if ($this->request->getMethod() === 'OPTIONS') {
-            $pipe = new MiddlewarePipe();
-            foreach ($this->middleware as $middleware) {
-                $pipe->pipe($middleware);
-            }
-            // Fallback: return 204 if no middleware handled the preflight
-            $pipe->pipe(new class implements MiddlewareInterface {
-                public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-                {
-                    return new EmptyResponse(204);
-                }
-            });
-            $response = $pipe->handle($this->request);
-        } else {
-            $response = $this->router->dispatch($this->request);
-        }
+        $response = $this->router->dispatch($this->request);
 
         (new SapiEmitter())->emit($response);
     }
@@ -139,6 +120,27 @@ class Server implements RequestHandlerRunnerInterface
             return getcwd();
         }
         return dirname($filename);
+    }
+
+    private function getPagesPath(string $root): string
+    {
+        $pagesPath = $root . '/pages';
+
+        if (is_dir($pagesPath)) {
+            return $pagesPath;
+        }
+
+        // Support the conventional project layout where the entry point is
+        // public/index.php and pages/ lives at the project root.
+        if (basename($root) === 'public') {
+            $projectPagesPath = dirname($root) . '/pages';
+
+            if (is_dir($projectPagesPath)) {
+                return $projectPagesPath;
+            }
+        }
+
+        return $pagesPath;
     }
 
     public function getBasePath(): string

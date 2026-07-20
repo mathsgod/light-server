@@ -55,13 +55,13 @@ class MethodMiddlewareTest extends TestCase
         $this->assertEquals(200, $response->getStatusCode());
     }
 
-    // Bug 3 fix: union type 參數唔應 crash，應收到 null
-    public function testUnionTypeParameterReceivesNull(): void
+    // Union types use their declared default value instead of being sent to the container.
+    public function testUnionTypeParameterUsesDefaultValue(): void
     {
         $object = new class {
             public string|int|null $received = 'untouched';
 
-            public function GET(string|int|null $id = null): ResponseInterface
+            public function GET(string|int|null $id = 123): ResponseInterface
             {
                 $this->received = $id;
                 return new JsonResponse([]);
@@ -72,7 +72,7 @@ class MethodMiddlewareTest extends TestCase
         $response = $middleware->process($this->request, $this->handler);
 
         $this->assertEquals(200, $response->getStatusCode());
-        $this->assertNull($object->received);
+        $this->assertSame(123, $object->received);
     }
 
     // ServerRequestInterface 參數應自動注入 $request
@@ -117,6 +117,92 @@ class MethodMiddlewareTest extends TestCase
         $middleware->process($this->request, $this->handler);
 
         $this->assertSame($service, $object->received);
+    }
+
+    public function testUsesDefaultValueForScalarParameter(): void
+    {
+        $object = new class {
+            public mixed $received = 'untouched';
+
+            public function GET(int $limit = 20): ResponseInterface
+            {
+                $this->received = $limit;
+                return new JsonResponse([]);
+            }
+        };
+
+        $middleware = new MethodMiddleware($object, new \ReflectionMethod($object, 'GET'), null);
+        $middleware->process($this->request, $this->handler);
+
+        $this->assertSame(20, $object->received);
+    }
+
+    public function testDoesNotResolveScalarParameterFromContainer(): void
+    {
+        $object = new class {
+            public function GET(int $limit = 20): ResponseInterface
+            {
+                return new JsonResponse(['limit' => $limit]);
+            }
+        };
+
+        $container = $this->createMock(ContainerInterface::class);
+        $container->expects($this->never())->method('has');
+
+        $middleware = new MethodMiddleware($object, new \ReflectionMethod($object, 'GET'), $container);
+        $response = $middleware->process($this->request, $this->handler);
+
+        $this->assertEquals(200, $response->getStatusCode());
+    }
+
+    public function testNullableUnresolvableDependencyReceivesNull(): void
+    {
+        $object = new class {
+            public ?DummyService $received = null;
+
+            public function GET(?DummyService $service): ResponseInterface
+            {
+                $this->received = $service;
+                return new JsonResponse([]);
+            }
+        };
+
+        $middleware = new MethodMiddleware($object, new \ReflectionMethod($object, 'GET'), null);
+        $middleware->process($this->request, $this->handler);
+
+        $this->assertNull($object->received);
+    }
+
+    public function testUnresolvableRequiredDependencyThrowsClearException(): void
+    {
+        $object = new class {
+            public function GET(DummyService $service): ResponseInterface
+            {
+                return new JsonResponse([]);
+            }
+        };
+
+        $middleware = new MethodMiddleware($object, new \ReflectionMethod($object, 'GET'), null);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to resolve parameter $service');
+        $middleware->process($this->request, $this->handler);
+    }
+
+    public function testNonNullableUnionTypeThrowsClearException(): void
+    {
+        $object = new class {
+            public function GET(string|int $id): ResponseInterface
+            {
+                return new JsonResponse([]);
+            }
+        };
+
+        $middleware = new MethodMiddleware($object, new \ReflectionMethod($object, 'GET'), null);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to resolve parameter $id');
+        $middleware->process($this->request, $this->handler);
     }
 
     // echo 輸出應包裝成 TextResponse

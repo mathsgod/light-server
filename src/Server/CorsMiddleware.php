@@ -24,7 +24,11 @@ class CorsMiddleware implements MiddlewareInterface
     {
         $origin = $request->getHeaderLine('Origin');
 
-        if ($request->getMethod() === 'OPTIONS') {
+        $isPreflight = $request->getMethod() === 'OPTIONS'
+            && $request->getHeaderLine('Origin') !== ''
+            && $request->getHeaderLine('Access-Control-Request-Method') !== '';
+
+        if ($isPreflight) {
             return $this->addCorsHeaders(new EmptyResponse(204), $origin);
         }
 

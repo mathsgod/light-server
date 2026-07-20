@@ -37,6 +37,8 @@ require 'vendor/autoload.php';
 (new Light\Server())->run();
 ```
 
+The server supports both `pages/` next to the entry point and the common project layout with `public/index.php` and `pages/` at the project root.
+
 ### 2. Create a page handler
 
 ```php
@@ -83,10 +85,12 @@ return new class {
     public function put(): ResponseInterface { }
     public function delete(): ResponseInterface { }
     public function patch(): ResponseInterface { }
+    public function options(): ResponseInterface { }
 };
 ```
 
 `HEAD` requests use the `head()` method when defined; otherwise they reuse `get()` and return the response headers without a body.
+`OPTIONS` requests use the `options()` method when defined; otherwise routes return `204 No Content`.
 
 ### Dynamic Routes
 
@@ -158,8 +162,9 @@ return new class {
 Method parameters are resolved automatically by type hint:
 
 - `ServerRequestInterface` — injects the current HTTP request
-- Any other type hint — resolved from the PSR-11 container (if provided)
-- Unresolvable parameters — receive `null`
+- Class and interface type hints — resolved from the PSR-11 container (if provided)
+- Scalar and union types — use their declared default value, or `null` when nullable; route and request values should be read from the request
+- Required parameters that cannot be resolved — throw a `RuntimeException` with the parameter name
 
 ```php
 <?php
@@ -227,7 +232,7 @@ return new class {
 
 Handles CORS preflight (`OPTIONS`) requests and adds CORS headers to all responses.
 
-- `OPTIONS` requests are intercepted **before routing** and return `204 No Content` with CORS headers
+- CORS preflight requests (with `Origin` and `Access-Control-Request-Method`) return `204 No Content` with CORS headers
 - All other requests pass through normally with CORS headers appended
 
 ```php

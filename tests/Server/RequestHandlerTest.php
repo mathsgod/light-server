@@ -78,6 +78,41 @@ return new class {
         $this->assertStringContainsString('"status":"ok"', (string) $response->getBody());
     }
 
+    public function testHandlesCustomOptionsMethod(): void
+    {
+        $this->writePageFile('
+return new class {
+    public function OPTIONS(): \Psr\Http\Message\ResponseInterface {
+        return new \Laminas\Diactoros\Response\TextResponse("custom options");
+    }
+};');
+
+        $handler = new RequestHandler($this->tempFile, null);
+        $request = new ServerRequest([], [], '/', 'OPTIONS');
+
+        $response = $handler->handle($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('custom options', (string) $response->getBody());
+    }
+
+    public function testOptionsWithoutCustomMethodReturns204(): void
+    {
+        $this->writePageFile('
+return new class {
+    public function GET(): \Psr\Http\Message\ResponseInterface {
+        return new \Laminas\Diactoros\Response\TextResponse("get");
+    }
+};');
+
+        $handler = new RequestHandler($this->tempFile, null);
+        $request = new ServerRequest([], [], '/', 'OPTIONS');
+
+        $response = $handler->handle($request);
+
+        $this->assertEquals(204, $response->getStatusCode());
+    }
+
     public function testHandlesHeadUsingGetWithoutReturningBody(): void
     {
         $this->writePageFile('

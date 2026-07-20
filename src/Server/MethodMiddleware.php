@@ -10,6 +10,7 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use ReflectionMethod;
 use ReflectionNamedType;
+use ReflectionParameter;
 
 class MethodMiddleware implements MiddlewareInterface
 {
@@ -26,24 +27,10 @@ class MethodMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $args = [];
-        foreach ($this->ref_method->getParameters() as $param) {
-            $type = $param->getType();
-
-            if (!$type instanceof ReflectionNamedType) {
-                $args[] = null;
-                continue;
-            }
-
-            if ($type->getName() === ServerRequestInterface::class) {
-                $args[] = $request;
-                continue;
-            }
-
-            $args[] = $this->container?->has($type->getName())
-                ? $this->container->get($type->getName())
-                : null;
-        }
+        $args = array_map(
+            fn (ReflectionParameter $param): mixed => $this->resolveParameter($param, $request),
+            $this->ref_method->getParameters()
+        );
 
         set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline): bool {
             if (!(error_reporting() & $errno)) {
@@ -69,5 +56,44 @@ class MethodMiddleware implements MiddlewareInterface
         }
 
         return new EmptyResponse(200);
+    }
+
+    private function resolveParameter(
+        ReflectionParameter $param,
+        ServerRequestInterface $request
+    ): mixed {
+        $type = $param->getType();
+
+        if ($type instanceof ReflectionNamedType) {
+            if ($type->getName() === ServerRequestInterface::class) {
+                return $request;
+            }
+
+            // Only class/interface dependencies belong in the container.
+            if (!$type->isBuiltin()) {
+                $typeName = $type->getName();
+
+                if ($this->container?->has($typeName)) {
+                    return $this->container->get($typeName);
+                }
+            }
+        }
+
+        if ($param->isDefaultValueAvailable()) {
+            return $param->getDefaultValue();
+        }
+
+        if ($param->allowsNull()) {
+            return null;
+        }
+
+        $class = $this->ref_method->getDeclaringClass()?->getName() ?? $this->object::class;
+
+        throw new \RuntimeException(sprintf(
+            'Unable to resolve parameter $%s for %s::%s()',
+            $param->getName(),
+            $class,
+            $this->ref_method->getName()
+        ));
     }
 }
