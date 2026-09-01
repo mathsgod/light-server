@@ -188,4 +188,109 @@ PHP
             rmdir($root);
         }
     }
+
+    public function testServerMatchesPageFileWithAndWithoutTrailingSlash(): void
+    {
+        $root = sys_get_temp_dir() . '/light-server-' . bin2hex(random_bytes(8));
+        $pages = $root . '/pages';
+        mkdir($pages, 0777, true);
+        file_put_contents($root . '/index.php', '<?php');
+        file_put_contents($pages . '/foo.php', <<<'PHP'
+<?php
+return new class {
+    public function GET(): \Psr\Http\Message\ResponseInterface
+    {
+        return new \Laminas\Diactoros\Response\TextResponse('foo');
+    }
+};
+PHP
+        );
+
+        $serverParams = $_SERVER;
+        $_SERVER['SCRIPT_FILENAME'] = $root . '/index.php';
+        $_SERVER['SCRIPT_NAME'] = '/index.php';
+
+        try {
+            $server = new \Light\Server();
+
+            foreach (['/foo', '/foo/'] as $path) {
+                $response = $server->getRouter()->dispatch(new \Laminas\Diactoros\ServerRequest([], [], $path, 'GET'));
+                $this->assertSame(200, $response->getStatusCode());
+                $this->assertSame('foo', (string) $response->getBody());
+            }
+        } finally {
+            $_SERVER = $serverParams;
+            unlink($pages . '/foo.php');
+            unlink($root . '/index.php');
+            rmdir($pages);
+            rmdir($root);
+        }
+    }
+
+    public function testServerMatchesDirectoryIndexWithAndWithoutTrailingSlash(): void
+    {
+        $root = sys_get_temp_dir() . '/light-server-' . bin2hex(random_bytes(8));
+        $pages = $root . '/pages';
+        mkdir($pages . '/foo', 0777, true);
+        file_put_contents($root . '/index.php', '<?php');
+        file_put_contents($pages . '/foo/index.php', <<<'PHP'
+<?php
+return new class {
+    public function GET(): \Psr\Http\Message\ResponseInterface
+    {
+        return new \Laminas\Diactoros\Response\TextResponse('foo index');
+    }
+};
+PHP
+        );
+
+        $serverParams = $_SERVER;
+        $_SERVER['SCRIPT_FILENAME'] = $root . '/index.php';
+        $_SERVER['SCRIPT_NAME'] = '/index.php';
+
+        try {
+            $server = new \Light\Server();
+
+            foreach (['/foo', '/foo/'] as $path) {
+                $response = $server->getRouter()->dispatch(new \Laminas\Diactoros\ServerRequest([], [], $path, 'GET'));
+                $this->assertSame(200, $response->getStatusCode());
+                $this->assertSame('foo index', (string) $response->getBody());
+            }
+        } finally {
+            $_SERVER = $serverParams;
+            unlink($pages . '/foo/index.php');
+            unlink($root . '/index.php');
+            rmdir($pages . '/foo');
+            rmdir($pages);
+            rmdir($root);
+        }
+    }
+
+    public function testServerRejectsFileAndIndexRouteCollision(): void
+    {
+        $root = sys_get_temp_dir() . '/light-server-' . bin2hex(random_bytes(8));
+        $pages = $root . '/pages';
+        mkdir($pages . '/foo', 0777, true);
+        file_put_contents($root . '/index.php', '<?php');
+        file_put_contents($pages . '/foo.php', '<?php return new stdClass();');
+        file_put_contents($pages . '/foo/index.php', '<?php return new stdClass();');
+
+        $serverParams = $_SERVER;
+        $_SERVER['SCRIPT_FILENAME'] = $root . '/index.php';
+        $_SERVER['SCRIPT_NAME'] = '/index.php';
+
+        try {
+            $this->expectException(\LogicException::class);
+            $this->expectExceptionMessage('Route collision for "/foo"');
+            new \Light\Server();
+        } finally {
+            $_SERVER = $serverParams;
+            unlink($pages . '/foo/index.php');
+            unlink($pages . '/foo.php');
+            unlink($root . '/index.php');
+            rmdir($pages . '/foo');
+            rmdir($pages);
+            rmdir($root);
+        }
+    }
 }

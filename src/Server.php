@@ -16,6 +16,8 @@ class Server implements RequestHandlerRunnerInterface
     private ?ContainerInterface $container;
     private Router $router;
     private ServerRequestInterface $request;
+    /** @var array<string, string> canonical route path => source page file */
+    private array $routeFiles = [];
 
     public function __construct(?ContainerInterface $container = null)
     {
@@ -39,11 +41,14 @@ class Server implements RequestHandlerRunnerInterface
             }
 
             $routePath = $this->resolveRoutePath($base, $page_path, $file);
+            $this->assertRouteIsUnique($routePath, $file);
 
-            foreach (self::HTTP_METHODS as $method) {
-                $router->map($method, $routePath, function (ServerRequestInterface $request, array $args) use ($file) {
-                    return (new Server\RequestHandler($file->getPathname(), $this->container))->handle($request);
-                });
+            foreach ($this->routeAliases($routePath) as $routeAlias) {
+                foreach (self::HTTP_METHODS as $method) {
+                    $router->map($method, $routeAlias, function (ServerRequestInterface $request, array $args) use ($file) {
+                        return (new Server\RequestHandler($file->getPathname(), $this->container))->handle($request);
+                    });
+                }
             }
         }
 
@@ -59,13 +64,45 @@ class Server implements RequestHandlerRunnerInterface
     private function resolveRoutePath(string $base, string $pagePath, \SplFileInfo $file): string
     {
         $relative = str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), strlen($pagePath)));
-        $routePath = $base . rtrim(str_replace('.php', '', $relative), '/');
 
         if ($file->getBasename() === 'index.php') {
-            $routePath = rtrim(str_replace('/index', '', $routePath), '/') . '/';
+            $relative = dirname($relative);
+        } else {
+            $relative = preg_replace('/\.php$/', '', $relative) ?? $relative;
         }
 
-        return $routePath;
+        $relative = trim($relative, '/');
+        $base = rtrim($base, '/');
+
+        if ($relative === '') {
+            return $base === '' ? '/' : $base;
+        }
+
+        return $base . '/' . $relative;
+    }
+
+    /** @return string[] */
+    private function routeAliases(string $routePath): array
+    {
+        if ($routePath === '/') {
+            return ['/'];
+        }
+
+        return [$routePath, $routePath . '/'];
+    }
+
+    private function assertRouteIsUnique(string $routePath, \SplFileInfo $file): void
+    {
+        if (isset($this->routeFiles[$routePath])) {
+            throw new \LogicException(sprintf(
+                'Route collision for "%s": "%s" and "%s" both resolve to the same route.',
+                $routePath,
+                $this->routeFiles[$routePath],
+                $file->getPathname(),
+            ));
+        }
+
+        $this->routeFiles[$routePath] = $file->getPathname();
     }
 
     private function scanFiles(string $path): \Generator

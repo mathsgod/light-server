@@ -68,10 +68,15 @@ Routes are generated automatically from the `pages/` directory structure:
 |------|-------|
 | `pages/index.php` | `/` |
 | `pages/about.php` | `/about` |
-| `pages/blog/index.php` | `/blog/` |
-| `pages/blog/{id}/index.php` | `/blog/{id}` |
+| `pages/blog/index.php` | `/blog` and `/blog/` |
+| `pages/blog/{id}/index.php` | `/blog/{id}` and `/blog/{id}/` |
 
 > If the `pages/` directory does not exist, the server starts normally with no routes.
+
+Routes use a canonical path without a trailing slash, but both `/blog` and
+`/blog/` dispatch to the same page handler. A page file and a directory index
+cannot define the same canonical route: `pages/blog.php` and
+`pages/blog/index.php` cause a startup route-collision error.
 
 ### HTTP Methods
 
